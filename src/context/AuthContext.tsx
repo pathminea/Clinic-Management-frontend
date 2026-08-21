@@ -20,14 +20,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize from localStorage
   useEffect(() => {
     const savedToken = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('user');
+
     if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+      try {
+        const parsedUser = JSON.parse(savedUser);
+        setToken(savedToken);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Invalid user data in localStorage:', error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
+      }
+    } else if (savedToken || savedUser) {
+      // partial/inconsistent state — clear it rather than run half-authenticated
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
     }
+
     setIsLoading(false);
   }, []);
 
@@ -57,19 +71,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     authApi.logout();
     setToken(null);
     setUser(null);
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
   };
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isLoading,
-        login,
-        register,
-        logout,
-        isAuthenticated: !!token,
-      }}
+      value={{ user, token, isLoading, login, register, logout, isAuthenticated: !!token }}
     >
       {children}
     </AuthContext.Provider>

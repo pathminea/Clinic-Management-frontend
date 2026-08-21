@@ -2,11 +2,15 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
+import { LoginPage } from './pages/logins';
+import { RegisterPage } from './pages/registers';
 import { HomePage } from './pages/HomePage';
-import { AppointmentsPage } from './pages/AppointmentsPage';
-import { DoctorsPage } from './pages/DoctorsPage';
+import { AppointmentsPage } from './pages/appointments';
+import { DoctorsPage } from './pages/doctors';
+import { PatientsPage } from './pages/patients';
+import { PrescriptionsPage } from './pages/prescriptions';
+import { TreatmentsPage } from './pages/treatments';
+import { UsersPage } from './pages/users';
 
 const AppRoutes: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -43,6 +47,39 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/patients"
+        element={
+          <ProtectedRoute>
+            <PatientsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/prescriptions"
+        element={
+          <ProtectedRoute>
+            <PrescriptionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/treatments"
+        element={
+          <ProtectedRoute>
+            <TreatmentsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <UsersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };
