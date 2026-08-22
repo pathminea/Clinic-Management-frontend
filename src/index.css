@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap');
+
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -17,7 +19,7 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
   font-synthesis: none;
@@ -30,8 +32,7 @@
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+:root[data-theme='dark'] {
     --text: #9ca3af;
     --text-h: #f3f4f6;
     --bg: #16171d;
@@ -43,8 +44,6 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
   #social .button-icon {
     filter: invert(1) brightness(2);
   }
@@ -64,6 +63,47 @@
 
 body {
   margin: 0;
+  background: var(--bg);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-h);
+  background: var(--bg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  font: 600 0.8rem var(--sans);
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .theme-toggle {
+    top: 0.75rem;
+    right: 0.75rem;
+  }
 }
 
 h1,
@@ -109,3 +149,33 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+:root {
+  --navy: #123b3a;
+  --surface: #f3f6f3;
+  --card: #ffffff;
+  --ink: #18312f;
+  --muted: #728481;
+  --line: #dce6e2;
+  --coral: #e66f5d;
+  --body: 'DM Sans', sans-serif;
+  --heading: 'Newsreader', Georgia, serif;
+  --mono: 'DM Mono', monospace;
+  font: 16px/1.45 var(--body);
+  letter-spacing: 0;
+  color: var(--ink);
+  background: var(--surface);
+}
+
+:root[data-theme='dark'] {
+  --surface: #101d1d;
+  --card: #172827;
+  --ink: #e8f2ef;
+  --muted: #9bb0ab;
+  --line: #2b4240;
+  --navy: #0d2c2c;
+}
+
+#root { width: 100%; max-width: none; border: 0; text-align: left; }
+body { min-width: 320px; background: var(--surface); }
+h1, h2 { letter-spacing: 0; }

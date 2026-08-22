@@ -12,8 +12,8 @@ export const treatmentApi = {
     return response.data;
   },
 
-  getByAppointmentId: async (appointmentId: number): Promise<Treatment[]> => {
-    const response = await apiClient.get<Treatment[]>(`/treatments/appointment/${appointmentId}`);
+  getByAppointmentId: async (appointmentId: number): Promise<Treatment> => {
+    const response = await apiClient.get<Treatment>(`/treatments/appointment/${appointmentId}`);
     return response.data;
   },
 

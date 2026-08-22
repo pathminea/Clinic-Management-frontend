@@ -95,14 +95,13 @@ export interface TreatmentDto extends Treatment {}
 // Prescription Types
 export interface Prescription {
   id: number;
-  appointmentId: number;
-  medicationName: string;
-  dosage: string;
-  frequency: string;
-  duration: string;
+  treatmentId: number;
+  medicineName: string;
+  dosage?: string;
+  frequency?: string;
+  duration?: string;
   instructions?: string;
-  createdDate?: string;
-  appointment?: Appointment;
+  treatment?: Treatment;
 }
 
 export interface PrescriptionDto extends Prescription {}

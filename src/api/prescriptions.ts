@@ -2,8 +2,8 @@ import apiClient from './client';
 import type { Prescription, PrescriptionDto } from '../types';
 
 export const prescriptionApi = {
-  getAll: async (): Promise<Prescription[]> => {
-    const response = await apiClient.get<Prescription[]>('/prescriptions');
+  getAll: async (signal?: AbortSignal): Promise<Prescription[]> => {
+    const response = await apiClient.get<Prescription[]>('/prescriptions', { signal });
     return response.data;
   },
 
@@ -12,8 +12,8 @@ export const prescriptionApi = {
     return response.data;
   },
 
-  getByAppointmentId: async (appointmentId: number): Promise<Prescription[]> => {
-    const response = await apiClient.get<Prescription[]>(`/prescriptions/appointment/${appointmentId}`);
+  getByTreatmentId: async (treatmentId: number, signal?: AbortSignal): Promise<Prescription[]> => {
+    const response = await apiClient.get<Prescription[]>(`/prescriptions/treatment/${treatmentId}`, { signal });
     return response.data;
   },
 

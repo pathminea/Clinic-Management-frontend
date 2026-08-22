@@ -1,30 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import type { Doctor } from '../../types';
 import { doctorApi } from '../../api/doctors';
+import { useTheme } from '../../context/ThemeContext';
 
-type Theme = 'light' | 'dark';
-
-const getInitialTheme = (): Theme => {
-  const stored = window.localStorage.getItem('theme');
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
+const emptyForm: Omit<Doctor, 'id'> = { firstName: '', lastName: '', email: '', specialization: '', phone: '' };
 
 export const DoctorsPage: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const [form, setForm] = useState<Omit<Doctor, 'id'>>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const { theme } = useTheme();
 
   useEffect(() => {
     fetchDoctors();
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
 
   const fetchDoctors = async () => {
     try {
@@ -37,6 +29,23 @@ export const DoctorsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      setSaving(true); setError('');
+      if (editingId === null) await doctorApi.create({ id: 0, ...form });
+      else await doctorApi.update(editingId, { id: editingId, ...form });
+      setForm(emptyForm); setEditingId(null); await fetchDoctors();
+    } catch (err: any) { setError(err?.response?.data?.message ?? err?.message ?? 'Failed to save doctor'); }
+    finally { setSaving(false); }
+  };
+
+  const remove = async (id: number) => {
+    if (!window.confirm('Delete this doctor?')) return;
+    try { await doctorApi.delete(id); setDoctors((items) => items.filter((item) => item.id !== id)); }
+    catch (err: any) { setError(err?.response?.data?.message ?? err?.message ?? 'Failed to delete doctor'); }
   };
 
   const c = palette[theme];
@@ -55,17 +64,20 @@ export const DoctorsPage: React.FC = () => {
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.heading}>Doctors</h1>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            style={styles.themeToggle}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
+        
         </div>
 
         {error && <div style={styles.error}>{error}</div>}
+
+        <form style={styles.form} onSubmit={submit}>
+          <h2 style={styles.formHeading}>{editingId === null ? 'New doctor' : 'Edit doctor'}</h2>
+          <input required placeholder="First name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+          <input required placeholder="Last name" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+          <input required type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <input required placeholder="Specialization" value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} />
+          <input placeholder="Phone" value={form.phone ?? ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <div><button type="submit" disabled={saving}>{saving ? 'Saving...' : editingId === null ? 'Create' : 'Save'}</button>{editingId !== null && <button type="button" onClick={() => { setEditingId(null); setForm(emptyForm); }}>Cancel</button>}</div>
+        </form>
 
         <div style={styles.gridContainer}>
           {doctors.map((doctor) => (
@@ -74,6 +86,8 @@ export const DoctorsPage: React.FC = () => {
               <p style={styles.cardLine}><span style={styles.cardLabel}>Specialization:</span> {doctor.specialization}</p>
               <p style={styles.cardLine}><span style={styles.cardLabel}>Email:</span> {doctor.email}</p>
               {doctor.phone && <p style={styles.cardLine}><span style={styles.cardLabel}>Phone:</span> {doctor.phone}</p>}
+              <button onClick={() => { setEditingId(doctor.id); setForm({ ...emptyForm, ...doctor }); }}>Edit</button>{' '}
+              <button onClick={() => remove(doctor.id)}>Delete</button>
             </div>
           ))}
           {doctors.length === 0 && (
@@ -114,7 +128,7 @@ const palette = {
   },
 } as const;
 
-type Palette = typeof palette.light;
+type Palette = (typeof palette)[keyof typeof palette];
 
 const makeStyles = (c: Palette): Record<string, React.CSSProperties> => ({
   pageWrap: {
@@ -138,6 +152,16 @@ const makeStyles = (c: Palette): Record<string, React.CSSProperties> => ({
     color: c.text,
     fontSize: '1.5rem',
   },
+  form: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: '0.75rem',
+    padding: '1rem',
+    marginBottom: '1rem',
+    border: `1px solid ${c.cardBorder}`,
+    backgroundColor: c.cardBg,
+  },
+  formHeading: { gridColumn: '1 / -1', margin: 0, color: c.text, fontSize: '1rem' },
   themeToggle: {
     width: '36px',
     height: '36px',

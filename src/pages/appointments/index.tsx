@@ -1,32 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import type { Appointment } from '../../types';
+import type { Appointment, AppointmentRequest, Doctor, Patient } from '../../types';
 import { appointmentApi } from '../../api/appointments';
-
-type Theme = 'light' | 'dark';
-
-const getInitialTheme = (): Theme => {
-  const stored = window.localStorage.getItem('theme');
-  if (stored === 'light' || stored === 'dark') return stored;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
+import { doctorApi } from '../../api/doctors';
+import { patientApi } from '../../api/patients';
+import { useTheme } from '../../context/ThemeContext';
 
 const statusKey = (status: string) => status.toLowerCase().replace(/[^a-z]/g, '');
 
+const emptyForm: AppointmentRequest = {
+  doctorId: 0,
+  patientId: 0,
+  appointmentDate: '',
+  appointmentTime: '',
+  notes: '',
+};
+
 export const AppointmentsPage: React.FC = () => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [form, setForm] = useState<AppointmentRequest>(emptyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [theme, setTheme] = useState<Theme>(getInitialTheme);
+  const { theme } = useTheme();
 
   useEffect(() => {
-    fetchAppointments();
+    Promise.all([fetchAppointments(), fetchDoctors(), fetchPatients()]);
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
 
   const fetchAppointments = async () => {
     try {
@@ -39,6 +41,75 @@ export const AppointmentsPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const fetchDoctors = async () => {
+    try {
+      setDoctors(await doctorApi.getAll());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch doctors');
+    }
+  };
+
+  const fetchPatients = async () => {
+    try {
+      setPatients(await patientApi.getAll());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch patients');
+    }
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    try {
+      setIsSaving(true);
+      setError('');
+      if (editingId === null) {
+        await appointmentApi.create(form);
+      } else {
+        await appointmentApi.update(editingId, form);
+      }
+      setForm(emptyForm);
+      setEditingId(null);
+      await fetchAppointments();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save appointment');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleEdit = (appointment: Appointment) => {
+    setEditingId(appointment.id);
+    setForm({
+      doctorId: appointment.doctorId,
+      patientId: appointment.patientId,
+      appointmentDate: appointment.appointmentDate,
+      appointmentTime: appointment.appointmentTime,
+      notes: appointment.notes ?? '',
+    });
+    setError('');
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!window.confirm('Delete this appointment?')) return;
+    try {
+      setError('');
+      await appointmentApi.delete(id);
+      setAppointments((current) => current.filter((appointment) => appointment.id !== id));
+      if (editingId === id) {
+        setEditingId(null);
+        setForm(emptyForm);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete appointment');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setError('');
   };
 
   const c = palette[theme];
@@ -62,17 +133,45 @@ export const AppointmentsPage: React.FC = () => {
       <div style={styles.container}>
         <div style={styles.header}>
           <h1 style={styles.heading}>Appointments</h1>
-          <button
-            type="button"
-            onClick={toggleTheme}
-            aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            style={styles.themeToggle}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
         </div>
 
         {error && <div style={styles.error}>{error}</div>}
+
+        <form style={styles.form} onSubmit={handleSubmit}>
+          <h2 style={styles.formHeading}>{editingId === null ? 'New appointment' : 'Edit appointment'}</h2>
+          <div className="appointment-form-grid" style={styles.formGrid}>
+            <label style={styles.label}>
+              Doctor
+              <select style={styles.input} value={form.doctorId || ''} onChange={(event) => setForm({ ...form, doctorId: Number(event.target.value) })} required>
+                <option value="">Select a doctor</option>
+                {doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.firstName} {doctor.lastName}</option>)}
+              </select>
+            </label>
+            <label style={styles.label}>
+              Patient
+              <select style={styles.input} value={form.patientId || ''} onChange={(event) => setForm({ ...form, patientId: Number(event.target.value) })} required>
+                <option value="">Select a patient</option>
+                {patients.map((patient) => <option key={patient.id} value={patient.id}>{patient.firstName} {patient.lastName}</option>)}
+              </select>
+            </label>
+            <label style={styles.label}>
+              Date
+              <input style={styles.input} type="date" value={form.appointmentDate} onChange={(event) => setForm({ ...form, appointmentDate: event.target.value })} required />
+            </label>
+            <label style={styles.label}>
+              Time
+              <input style={styles.input} type="time" value={form.appointmentTime} onChange={(event) => setForm({ ...form, appointmentTime: event.target.value })} required />
+            </label>
+            <label style={styles.labelWide}>
+              Notes
+              <textarea style={styles.input} rows={2} value={form.notes ?? ''} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+            </label>
+          </div>
+          <div style={styles.formActions}>
+            {editingId !== null && <button type="button" style={styles.secondaryButton} onClick={handleCancelEdit}>Cancel</button>}
+            <button type="submit" style={styles.primaryButton} disabled={isSaving}>{isSaving ? 'Saving...' : editingId === null ? 'Create appointment' : 'Save changes'}</button>
+          </div>
+        </form>
 
         <div style={styles.tableWrap}>
           <table style={styles.table}>
@@ -84,6 +183,7 @@ export const AppointmentsPage: React.FC = () => {
                 <th style={styles.th}>Date</th>
                 <th style={styles.th}>Time</th>
                 <th style={styles.th}>Status</th>
+                <th style={styles.th}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -97,11 +197,15 @@ export const AppointmentsPage: React.FC = () => {
                   <td style={styles.td}>
                     <span style={statusBadgeStyle(apt.status)}>{apt.status}</span>
                   </td>
+                  <td style={styles.tdActions}>
+                    <button type="button" style={styles.actionButton} onClick={() => handleEdit(apt)}>Edit</button>
+                    <button type="button" style={styles.deleteButton} onClick={() => handleDelete(apt.id)}>Delete</button>
+                  </td>
                 </tr>
               ))}
               {appointments.length === 0 && (
                 <tr>
-                  <td style={styles.emptyCell} colSpan={6}>No appointments found.</td>
+                  <td style={styles.emptyCell} colSpan={7}>No appointments found.</td>
                 </tr>
               )}
             </tbody>
@@ -161,7 +265,7 @@ const palette = {
   },
 } as const;
 
-type Palette = typeof palette.light;
+type Palette = (typeof palette)[keyof typeof palette];
 
 const makeStyles = (c: Palette): Record<string, React.CSSProperties> => ({
   pageWrap: {
@@ -172,6 +276,8 @@ const makeStyles = (c: Palette): Record<string, React.CSSProperties> => ({
   container: {
     padding: '2rem',
     maxWidth: '960px',
+    width: '100%',
+    boxSizing: 'border-box',
     margin: '0 auto',
   },
   header: {
@@ -184,6 +290,96 @@ const makeStyles = (c: Palette): Record<string, React.CSSProperties> => ({
     margin: 0,
     color: c.text,
     fontSize: '1.5rem',
+  },
+  form: {
+    backgroundColor: c.cardBg,
+    border: `1px solid ${c.border}`,
+    borderRadius: '10px',
+    padding: '1rem',
+    marginBottom: '1rem',
+    boxShadow: c.tableShadow,
+  },
+  formHeading: {
+    margin: '0 0 1rem',
+    color: c.text,
+    fontSize: '1rem',
+  },
+  formGrid: {
+    display: 'grid',
+    gap: '0.85rem',
+  },
+  label: {
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem',
+    color: c.subtleText,
+    fontSize: '0.8rem',
+    fontWeight: 600,
+  },
+  labelWide: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem',
+    gridColumn: '1 / -1',
+    color: c.subtleText,
+    fontSize: '0.8rem',
+    fontWeight: 600,
+  },
+  input: {
+    boxSizing: 'border-box',
+    width: '100%',
+    padding: '0.6rem',
+    border: `1px solid ${c.border}`,
+    borderRadius: '6px',
+    backgroundColor: c.headerBg,
+    color: c.text,
+    font: 'inherit',
+    fontWeight: 400,
+  },
+  formActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '0.6rem',
+    marginTop: '1rem',
+  },
+  primaryButton: {
+    padding: '0.6rem 0.9rem',
+    border: 'none',
+    borderRadius: '6px',
+    backgroundColor: '#146c2e',
+    color: '#ffffff',
+    cursor: 'pointer',
+    fontWeight: 600,
+  },
+  secondaryButton: {
+    padding: '0.6rem 0.9rem',
+    border: `1px solid ${c.border}`,
+    borderRadius: '6px',
+    backgroundColor: 'transparent',
+    color: c.text,
+    cursor: 'pointer',
+  },
+  tdActions: {
+    display: 'flex',
+    gap: '0.45rem',
+    padding: '0.75rem 1rem',
+  },
+  actionButton: {
+    padding: '0.35rem 0.55rem',
+    border: `1px solid ${c.border}`,
+    borderRadius: '5px',
+    backgroundColor: c.headerBg,
+    color: c.text,
+    cursor: 'pointer',
+  },
+  deleteButton: {
+    padding: '0.35rem 0.55rem',
+    border: '1px solid #c0392b',
+    borderRadius: '5px',
+    backgroundColor: 'transparent',
+    color: '#c0392b',
+    cursor: 'pointer',
   },
   themeToggle: {
     width: '36px',
